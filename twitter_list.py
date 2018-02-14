@@ -9,7 +9,7 @@ from twitter_keys import Key
 
 # Here are some sample Twitter lists that we can parse to find specialized professionals:
 # Designers who work at Google: https://twitter.com/addyosmani/lists/google-designers
-# Ruby Developers who work in Sa Diego: https://twitter.com/sdruby/lists/members
+# Ruby Developers who work in San Diego: https://twitter.com/sdruby/lists/members
 # Engineers with degrees from a French Tech School: https://twitter.com/Altimor/lists/while42-ultimate
 
 list_owner = 'addyosmani'
