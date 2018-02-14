@@ -5,8 +5,8 @@ from bs4 import BeautifulSoup
 import mechanicalsoup
 import re
 
-search_term_1 = " google"
-search_term_2 = " designer"
+search_terms = ['google', 'designer']
+formatted_search_terms = ' '.join(search_terms)
 
 data = []
 with open('group_members.csv', 'r') as f:
@@ -36,7 +36,7 @@ def compare_links(person, google_link, bing_link, counter, match_counter):
     bing_name = bing_link.split("/")[4].split("?")[0]
     if google_name == bing_name:
       new_link = google_link
-      print ("Confirmed Link: " + final_link)
+      print ("Confirmed Link: " + new_link)
       print(str(counter) + ": " + person["Name"] + " - Match!")
       match_counter = increment(match_counter)
     else:
@@ -55,7 +55,7 @@ def increment(counter):
 def get_google_link(browser, person):
   browser.open('https://www.google.com/')
   form = browser.select_form('form[name="f"]')
-  search_string = "site:linkedin.com/in/ " + person["Name"] + " " + person["Location"].split(',')[0] + " " + search_term_1 + search_term_2
+  search_string = "site:linkedin.com/in/ " + person["Name"] + " " + person["Location"].split(',')[0] + " " + formatted_search_terms
   print(person)
   print("Google search string: " + search_string)
   browser["q"] = search_string
@@ -74,7 +74,7 @@ def get_google_link(browser, person):
 def get_bing_link(browser, person):
   browser.open('https://www.bing.com/')
   form = browser.select_form('form[action="/search"]')
-  search_string = "site:linkedin.com/in/ " + person["Name"] + " " + person["Location"].split(',')[0] + " " + search_term_1 + search_term_2
+  search_string = "site:linkedin.com/in/ " + person["Name"] + " " + person["Location"].split(',')[0] + " " + formatted_search_terms
   print("Bing search string: " + search_string)
   browser["q"]   = search_string
   form.choose_submit('go')
