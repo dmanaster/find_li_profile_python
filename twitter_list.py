@@ -75,10 +75,9 @@ for member in tweepy.Cursor(api.list_members, list_owner, list_name).items():
   member_location = member.location
 
 # The next line is to help reduce the number of low quality results that we get.
-# It checks for a space in the person's name. If there is no space, there is 
-# only one word in the name field, which is not very helpful for us if we are 
-# trying to identify real people.
-  if ' ' in member_name:
+# It checks that the string contains only letters and spaces, and that there is 
+# at least one space in the string.
+  if all(char.isalpha() or char.isspace() for char in member_name) and (' ' in member_name):
 
 # If the condition in the last line was met, the next line will write the 
 # person's name and location to our CSV file.
