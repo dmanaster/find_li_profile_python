@@ -67,12 +67,12 @@ for member in tweepy.Cursor(api.list_members, list_owner, list_name).items():
 # Uses the Twitter API to get the name of each Twitter user. Note that the 
 # "name" here is set by each person themselves. It's often their real 
 # name, but does not have to be.
-  member_name = member.name
+  member_name = member.name.encode('utf-8')
 
 # Uses the Twitter API to get the location of each Twitter user. Note that the 
 # "location" here is set by each person themselves. It's often their real 
 # location, but does not have to be.
-  member_location = member.location
+  member_location = member.location.encode('utf-8')
 
 # The next line is to help reduce the number of low quality results that we get.
 # It checks that the string contains only letters and spaces, and that there is 

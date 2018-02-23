@@ -1,6 +1,6 @@
 '''
 This program takes the CSV output file from twitter_list.py
-and uses Google and Bing to find the LinkedIn profile for 
+and uses Google and DuckDuckGo to find the LinkedIn profile for 
 the Twitter users in the list that we parsed. We use two search 
 engines so we can cross-reference the top result and see if they 
 match. In our tests, if both results are the same, there is a 
@@ -26,10 +26,10 @@ import csv
 # https://www.crummy.com/software/BeautifulSoup/bs4/doc/
 from bs4 import BeautifulSoup
 
-# Imports the MechanicalSoup library, which automates website interactions 
+# Imports the Mechanize library, which automates website interactions 
 # such as submitting forms and clicking links. For more information:
-# https://github.com/MechanicalSoup/MechanicalSoup
-import mechanicalsoup
+# https://mechanize.readthedocs.io/en/latest/
+import mechanize
 
 # Imports the Regular Expressions module, which will let us do more complicated 
 # pattern matching on our search results.
@@ -71,17 +71,20 @@ results_file = csv.writer(open('results.csv', 'a'))
 # which would mean that it is empty. If it is empty, it will write a 
 # header row in the file.
 if os.stat('results.csv').st_size == 0:
-  results_file.writerow(['Name', 'Location', 'Confirmed Link', 'Google Link', 'Bing Link'])
+  results_file.writerow(['Name', 'Location', 'Confirmed Link', 'Google Link', 'DuckDuckGo Link'])
 
 # Initializes two variables so we can keep track of how many names we have
 # checked and how many matches we have found.
 counter = 0
 match_counter = 0
 
-# Creates two virtual browsers using Mechanical Soup. We will use one for 
-# Google, and one for Bing.
-google_browser = mechanicalsoup.StatefulBrowser()
-bing_browser = mechanicalsoup.StatefulBrowser()
+# Creates two virtual browsers using Mechanize. We will use one for 
+# Google, and one for DuckDuckGo.
+google_browser = mechanize.Browser()
+google_browser.set_handle_robots(False)
+google_browser.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1')]
+duck_browser = mechanize.Browser()
+duck_browser.set_handle_robots(False)
 
 '''
 Everything to this point is setup; opening the input file, preparing the 
@@ -100,7 +103,7 @@ def get_google_link(browser, person):
 # <form class="tsf" action="/search" style="overflow:visible" id="tsf" method="GET" name="f" onsubmit="return q.value!=''" role="search">
 # Note that the name of the form is "f" in the code. So we instruct our 
 # virtual browser to get the form "f" and assign it to the variable "form".
-  form = browser.select_form('form[name="f"]')
+  browser.select_form(name='f')
 # We prepare our search string. It will combine a site-specific search on 
 # linkedin, the person's name and location that we got from Twitter, and 
 # the additional search terms that we formatted earlier. To make the search 
@@ -113,16 +116,11 @@ def get_google_link(browser, person):
 # <input class="lst lst-tbb sbibps" id="lst-ib" maxlength="2048" name="q" autocomplete="off" title="Search" type="text" value="" aria-label="Search">
 # We instruct our virtual browser to fill that input field with our search string.
   browser['q'] = search_string
-# On the Google home page, the HTML code for the part of the search form that 
-# is the submit button looks like this:
-# <button class="sbico-c" value="Search" aria-label="Google Search" id="_fZl" name="btnG" type="submit">
-# We tell our virtual browser that this button should be used to submit the form.
-  form.choose_submit('btnG')
 # Now that we have filled in the search field and identified how to submit the
 # form, we actually submit it, and store the results page in a variable.
-  page = browser.submit_selected()
+  page = browser.submit()
 # We use BeautifulSoup to parse the HTML that we just received.
-  soup = BeautifulSoup(page.text, 'html.parser')
+  soup = BeautifulSoup(page.get_data(), 'html.parser')
 # We search the HTML that we just parsed for a link ('a') with a URL ('href') that 
 # begins with '/url?q=https://www.linkedin.com/in/'
   link = soup.find('a', attrs={'href': re.compile("^\/url\?q=https:\/\/www.linkedin.com\/in\/")})
@@ -134,7 +132,7 @@ def get_google_link(browser, person):
 # part of it, which contains the piece that is important to us.
     final_link = (str_parts[1])
 # prints the link to the console so we can see in real time what is happening.
-    print ('Google Link:' + final_link)
+    print ('Google Link: ' + final_link)
 # if we can't find any matching links...
   else:
 # ...we assign a null value to our final_link variable.
@@ -144,15 +142,13 @@ def get_google_link(browser, person):
   return final_link
 
 # This function takes a virtual browser and our data about a person as input, 
-# and returns the first matching result for that person on LinkedIn, using 
-# Bing search.
-def get_bing_link(browser, person):
-# Opens the Bing home page in our virtual browser.
-  browser.open('https://www.bing.com/')
-# There is only one form on the Bing home page, and unlike Google it does 
-# not have a name attribute. So we instruct our virtual browser to get the 
-# first form on the page and assign it to the variable "form".
-  form = browser.select_form(nr=0)
+# and returns the first matching result for that person on LinkedIn, using the 
+# DuckDuckGo search engine.
+def get_duck_link(browser, person):
+# Opens the DuckDuckGo home page in our virtual browser.
+  browser.open('https://www.duckduckgo.com/')
+# Like we did with Google, we find the form on DuckDuckGo by its name.
+  browser.select_form(name='x')
 # We prepare our search string. It will combine a site-specific search on 
 # linkedin, the person's name and location that we got from Twitter, and 
 # the additional search terms that we formatted earlier. To make the search 
@@ -160,21 +156,16 @@ def get_bing_link(browser, person):
 # if we have a US location in the format "city, state", we only search using 
 # the city.
   search_string = 'site:linkedin.com/in/ ' + person['Name'] + ' ' + person['Location'].split(',')[0] + ' ' + formatted_search_terms
-# On the Bing home page, the HTML code for the part of the search form that 
+# On the DuckDuckGo home page, the HTML code for the part of the search form that 
 # is the input field where you type your query looks like this:
-# <input autocapitalize="off" autocomplete="off" autocorrect="off" class="b_searchbox" id="sb_form_q" maxlength="1000" name="q" placeholder="Enter your search" spellcheck="false" title="Enter your search term" type="search" value=""/>
+# <input id="search_form_input_homepage" class="search__input  js-search-input" type="text" autocomplete="off" name="q" tabindex="1" value="">
 # We instruct our virtual browser to fill that input field with our search string.
   browser['q'] = search_string
-# On the Bing home page, the HTML code for the part of the search form that 
-# is the submit button looks like this:
-# <input class="b_searchboxSubmit" id="sb_form_go" name="go" tabindex="0" title="Search" type="submit"/>
-# We tell our virtual browser that this button should be used to submit the form.
-  form.choose_submit('go')
 # Now that we have filled in the search field and identified how to submit the
 # form, we actually submit it, and store the results page in a variable.
-  page = browser.submit_selected()
+  page = browser.submit()
 # We use BeautifulSoup to parse the HTML that we just received.
-  soup = BeautifulSoup(page.text, 'html.parser')
+  soup = BeautifulSoup(page.get_data(), 'html.parser')
 # We search the HTML that we just parsed for a link ('a') with a URL ('href') that 
 # includes 'linkedin.com/in/'
   link = soup.find('a', attrs={'href': re.compile('linkedin.com\/in\/')})
@@ -186,7 +177,7 @@ def get_bing_link(browser, person):
 # part of it, which contains the piece that is important to us.
     final_link = (str_parts[0]) 
 # prints the link to the console so we can see in real time what is happening.
-    print ("Bing Link:" + final_link)
+    print ("DuckDuckGo Link: " + final_link)
 # if we can't find any matching links...
   else:
 # ...we assign a null value to our final_link variable.
@@ -196,15 +187,15 @@ def get_bing_link(browser, person):
   return final_link
 
 # This function compares the two links and determines if they match.
-def compare_links(person, google_link, bing_link, counter, match_counter):  
+def compare_links(person, google_link, duck_link, counter, match_counter):  
 # Initializes a variable called new_link with an empty string. 
   new_link = ""
 # Checks to make sure that we were able to find values for both of our 
 # links. If we try the next couple of lines on a null variable, we will 
 # get errors, and already know that we know that we don't want to confirm 
 # identical links if one of them does not exist.
-  if google_link is not None and bing_link is not None:
-# We split the Google and Bing links every time there is a forward slash. 
+  if google_link is not None and duck_link is not None:
+# We split the Google and DuckDuckGo links every time there is a forward slash. 
 # We want the part that comes after the 'https://www.linkedin.com/in/', 
 # so we select the fifth string that is created when we split it. Then we
 # split that string again every time there is a question mark, which 
@@ -212,9 +203,9 @@ def compare_links(person, google_link, bing_link, counter, match_counter):
 # URL. We take the first string from that split, which is the unique 
 # identifier for the profile.
     google_name = google_link.split("/")[4].split("?")[0]
-    bing_name = bing_link.split("/")[4].split("?")[0]
+    duck_name = duck_link.split("/")[4].split("?")[0]
 # If we have a match...
-    if google_name == bing_name:
+    if google_name == duck_name:
 # ...we change our new_link variable to be the same as one of the matching 
 # links.
       new_link = google_link
@@ -234,8 +225,8 @@ def compare_links(person, google_link, bing_link, counter, match_counter):
 
 # This function writes all of the data for a given person into a new row in our 
 # output file.
-def add_result(results_file, name, location, final_link, google_link, bing_link):
-  results_file.writerow([name, location, final_link, google_link, bing_link])
+def add_result(results_file, name, location, final_link, google_link, duck_link):
+  results_file.writerow([name, location, final_link, google_link, duck_link])
 
 # This function simply take an integer and adds one to it. It's useful for keeping 
 # track of how many times we have looped through the program.
@@ -255,20 +246,20 @@ them sequentially, once for every person in our dataset.
 
 for person in data:
 # First we increment our counter, to keep track of how many people we have looped through.
-  counter = increment(counte.r)
+  counter = increment(counter)
 # We get our Google Link
   google_link = get_google_link(google_browser, person)
-# We get our Bing Link.
-  bing_link = get_bing_link(bing_browser, person)
+# We get our DuckDuckGo Link.
+  duck_link = get_duck_link(duck_browser, person)
 # We compare the links and get back both a link (if there is a match), and the total 
 # number of matches that we have received so far.
-  final_link, match_counter = compare_links(person, google_link, bing_link, counter, match_counter)
-# We write the name, location, matched link, Google link, and Bing link to the output file.
+  final_link, match_counter = compare_links(person, google_link, duck_link, counter, match_counter)
+# We write the name, location, matched link, Google link, and DuckDuckGo link to the output file.
 # Why all three links? Because even if there is no match, one of the search engines is often able 
 # to find the right person, and being able to just click the links is a big time saver.
-  add_result(results_file, person["Name"], person["Location"], final_link, google_link, bing_link)
+  add_result(results_file, person["Name"], person["Location"], final_link, google_link, duck_link)
 # We print our current stats to the console to keep track of our overall progress in real time.
   print_stats(match_counter, counter)
-# We pause the program for 46 seconds between each loop. We do this so that we are not hammering 
-# the Google and Bing servers over and over, which will get us flagged as a bot and cut off.
-  sleep(46)
+# We pause the program for 65 seconds between each loop. We do this so that we are not hammering 
+# the Google and DuckDUckGo servers over and over, which will get us flagged as a bot and cut off.
+  sleep(65)
