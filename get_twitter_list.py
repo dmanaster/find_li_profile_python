@@ -1,7 +1,7 @@
 # This program uses the Twitter API to export all the names and locations of the members 
 # of a Twitter List to a file with comma separated values.
 
-# Here are some sample Twitter lists that we can parse to find specialized professionals:
+# Here are some sample Twitter Lists that we can parse to find specialized professionals:
 # https://twitter.com/addyosmani/lists/google-designers <-- Designers who work at Google 
 # https://twitter.com/sdruby/lists/members <-- Ruby Developers who work in San Diego 
 # https://twitter.com/Altimor/lists/while42-ultimate <-- Engineers with degrees from a French Tech School
@@ -37,10 +37,11 @@ from twitter_keys import Key
 list_owner = 'addyosmani'
 list_name = 'google-designers'
 
-# Uses the csv module that we imported earlier to open a file named group_members.csv
-# (if the file does not already exist, it will create it). The 'w' flag means that 
-# we will open the file in write mode.
-results_file = csv.writer(open('group_members.csv', 'w'))
+# Uses the csv module that we imported earlier to open a file named 
+# twitter_list_members.csv. The 'w' flag means that we will open the file 
+# in write mode. If the file does not already exist, it will 
+# create it. If it does exist, it will overwrite it. 
+results_file = csv.writer(open('twitter_list_members.csv', 'w'))
 # Writes a header row in our CSV file.
 results_file.writerow(["Name", "Location"])
 
@@ -61,15 +62,18 @@ api = tweepy.API(auth)
 # But Twitter limits API responses to 20 items, and we might have more than that. 
 # Tweepy uses cursoring to paginate the responses and get all of the responses, 
 # 20 at a time. http://tweepy.readthedocs.io/en/v3.5.0/cursor_tutorial.html
-# It then iterates the next five lines for every response that Twitter sends.
+# It then iterates the next five lines for every member of the list that 
+# Twitter sends.
 for member in tweepy.Cursor(api.list_members, list_owner, list_name).items():
 
-# Uses the Twitter API to get the name of each Twitter user. Note that the 
+# Uses the Twitter API to get the name of each Twitter user, and then make 
+# sure that the characters are in a format that we can use. Note that the 
 # "name" here is set by each person themselves. It's often their real 
 # name, but does not have to be.
   member_name = member.name.encode('utf-8')
 
-# Uses the Twitter API to get the location of each Twitter user. Note that the 
+# Uses the Twitter API to get the location of each Twitter user and then make 
+# sure that the characters are in a format that we can use. Note that the 
 # "location" here is set by each person themselves. It's often their real 
 # location, but does not have to be.
   member_location = member.location.encode('utf-8')
@@ -79,6 +83,6 @@ for member in tweepy.Cursor(api.list_members, list_owner, list_name).items():
 # at least one space in the string.
   if all(char.isalpha() or char.isspace() for char in member_name) and (' ' in member_name):
 
-# If the condition in the last line was met, the next line will write the 
-# person's name and location to our CSV file.
+# If the conditions in the last line were met, we write the person's name and 
+# location to our CSV file.
     results_file.writerow([member_name, member_location])

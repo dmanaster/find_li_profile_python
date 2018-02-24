@@ -1,12 +1,12 @@
 '''
-This program takes the CSV output file from twitter_list.py
-and uses Google and Yahoo to find the LinkedIn profile for 
-the Twitter users in the list that we parsed. We use two search 
+This program takes the CSV output file from get_twitter_list.py
+and uses Google and Yahoo to find the LinkedIn profiles for 
+the Twitter users in the list that we received. We use two search 
 engines so we can cross-reference the top result and see if they 
 match. In our tests, if both results are the same, there is a 
 98% chance that it is the person we are looking for! If the two 
-results do not match, the program saves both results to a new 
-CSV file so we can see at a glance if one of them looks correct.
+results do not match, the program also saves both results so we 
+can see at a glance if one of them looks correct.
 '''
 # Imports the sleep function from Python's time module. This will 
 # allow us to pause the program for a specified period of time. 
@@ -50,7 +50,7 @@ data = []
 
 # Opens the CSV that we created with twitter_list.py in read-only mode, 
 # assigns it to variable 'f', and then closes it when we are done.
-with open('group_members.csv', 'r') as f:
+with open('twitter_list_members.csv', 'r') as f:
 
 # Uses the CSV module to import the contents of the file into a 
 # dictionary.
@@ -65,12 +65,12 @@ with open('group_members.csv', 'r') as f:
 # not exist already). The 'a' option opens it in append mode, so if the 
 # file already exists, we will add new data to it and not overwrite the 
 # existing data.
-results_file = csv.writer(open('results.csv', 'a'))
+results_file = csv.writer(open('linkedin_results.csv', 'a'))
 
 # Uses the os module to check if the size of our output file is zero,
 # which would mean that it is empty. If it is empty, it will write a 
 # header row in the file.
-if os.stat('results.csv').st_size == 0:
+if os.stat('linkedin_results.csv').st_size == 0:
   results_file.writerow(['Name', 'Location', 'Confirmed Link', 'Google Link', 'Yahoo Link'])
 
 # Initializes two variables so we can keep track of how many names we have
@@ -116,13 +116,13 @@ def get_google_link(browser, person):
 # <input class="lst lst-tbb sbibps" id="lst-ib" maxlength="2048" name="q" autocomplete="off" title="Search" type="text" value="" aria-label="Search">
 # We instruct our virtual browser to fill that input field with our search string.
   browser['q'] = search_string
-# Now that we have filled in the search field and identified how to submit the
-# form, we actually submit it, and store the results page in a variable.
+# Now that we have filled in the search field we submit the form and store the 
+# results page in a variable.
   page = browser.submit()
 # We use BeautifulSoup to parse the HTML that we just received.
   soup = BeautifulSoup(page.get_data(), 'html.parser')
-# We search the HTML that we just parsed for a link ('a') with a URL ('href') that 
-# begins with '/url?q=https://www.linkedin.com/in/'
+# We search the HTML that we just parsed for the first link ('a') with a URL 
+# ('href') that begins with '/url?q=https://www.linkedin.com/in/'
   link = soup.find('a', attrs={'href': re.compile("^\/url\?q=https:\/\/www.linkedin.com\/in\/")})
 # If we find a link that matches...
   if link is not None:
@@ -158,16 +158,16 @@ def get_yahoo_link(browser, person):
   search_string = 'site:linkedin.com/in/ ' + person['Name'] + ' ' + person['Location'].split(',')[0] + ' ' + formatted_search_terms
 # On the Yahoo home page, the HTML code for the part of the search form that 
 # is the input field where you type your query looks like this:
-# <input id="search_form_input_homepage" class="search__input  js-search-input" type="text" autocomplete="off" name="q" tabindex="1" value="">
+# <input type="text" class="sbq" id="yschsp" name="p" value="" autocomplete="off" autofocus tabindex="1">
 # We instruct our virtual browser to fill that input field with our search string.
   browser['p'] = search_string
-# Now that we have filled in the search field and identified how to submit the
-# form, we actually submit it, and store the results page in a variable.
+# Now that we have filled in the search field we submit the form and store the 
+# results page in a variable.
   page = browser.submit()
 # We use BeautifulSoup to parse the HTML that we just received.
   soup = BeautifulSoup(page.get_data(), 'html.parser')
-# We search the HTML that we just parsed for a link ('a') with a URL ('href') that 
-# includes 'linkedin.com/in/'
+# We search the HTML that we just parsed for the first link ('a') with a URL 
+# ('href') that begins with 'https://www.linkedin.com/in/'
   link = soup.find('a', attrs={'href': re.compile("^https:\/\/www.linkedin.com\/in\/")})
 # If we find a link that matches...
   if link is not None:
