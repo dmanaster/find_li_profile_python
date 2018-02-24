@@ -1,6 +1,6 @@
 '''
 This program takes the CSV output file from twitter_list.py
-and uses Google and DuckDuckGo to find the LinkedIn profile for 
+and uses Google and Yahoo to find the LinkedIn profile for 
 the Twitter users in the list that we parsed. We use two search 
 engines so we can cross-reference the top result and see if they 
 match. In our tests, if both results are the same, there is a 
@@ -71,7 +71,7 @@ results_file = csv.writer(open('results.csv', 'a'))
 # which would mean that it is empty. If it is empty, it will write a 
 # header row in the file.
 if os.stat('results.csv').st_size == 0:
-  results_file.writerow(['Name', 'Location', 'Confirmed Link', 'Google Link', 'DuckDuckGo Link'])
+  results_file.writerow(['Name', 'Location', 'Confirmed Link', 'Google Link', 'Yahoo Link'])
 
 # Initializes two variables so we can keep track of how many names we have
 # checked and how many matches we have found.
@@ -79,12 +79,12 @@ counter = 0
 match_counter = 0
 
 # Creates two virtual browsers using Mechanize. We will use one for 
-# Google, and one for DuckDuckGo.
+# Google, and one for Yahoo.
 google_browser = mechanize.Browser()
 google_browser.set_handle_robots(False)
 google_browser.addheaders = [('User-agent', 'Mozilla/5.0 (X11; U; Linux i686; en-US; rv:1.9.0.1) Gecko/2008071615 Fedora/3.0.1-1.fc9 Firefox/3.0.1')]
-duck_browser = mechanize.Browser()
-duck_browser.set_handle_robots(False)
+yahoo_browser = mechanize.Browser()
+yahoo_browser.set_handle_robots(False)
 
 '''
 Everything to this point is setup; opening the input file, preparing the 
@@ -143,12 +143,12 @@ def get_google_link(browser, person):
 
 # This function takes a virtual browser and our data about a person as input, 
 # and returns the first matching result for that person on LinkedIn, using the 
-# DuckDuckGo search engine.
-def get_duck_link(browser, person):
-# Opens the DuckDuckGo home page in our virtual browser.
-  browser.open('https://www.duckduckgo.com/')
-# Like we did with Google, we find the form on DuckDuckGo by its name.
-  browser.select_form(name='x')
+# Yahoo search engine.
+def get_yahoo_link(browser, person):
+# Opens the Yahoo home page in our virtual browser.
+  browser.open('https://search.yahoo.com/')
+# Like we did with Google, we find the form on Yahoo by its name.
+  browser.select_form(name='s')
 # We prepare our search string. It will combine a site-specific search on 
 # linkedin, the person's name and location that we got from Twitter, and 
 # the additional search terms that we formatted earlier. To make the search 
@@ -156,11 +156,11 @@ def get_duck_link(browser, person):
 # if we have a US location in the format "city, state", we only search using 
 # the city.
   search_string = 'site:linkedin.com/in/ ' + person['Name'] + ' ' + person['Location'].split(',')[0] + ' ' + formatted_search_terms
-# On the DuckDuckGo home page, the HTML code for the part of the search form that 
+# On the Yahoo home page, the HTML code for the part of the search form that 
 # is the input field where you type your query looks like this:
 # <input id="search_form_input_homepage" class="search__input  js-search-input" type="text" autocomplete="off" name="q" tabindex="1" value="">
 # We instruct our virtual browser to fill that input field with our search string.
-  browser['q'] = search_string
+  browser['p'] = search_string
 # Now that we have filled in the search field and identified how to submit the
 # form, we actually submit it, and store the results page in a variable.
   page = browser.submit()
@@ -168,7 +168,7 @@ def get_duck_link(browser, person):
   soup = BeautifulSoup(page.get_data(), 'html.parser')
 # We search the HTML that we just parsed for a link ('a') with a URL ('href') that 
 # includes 'linkedin.com/in/'
-  link = soup.find('a', attrs={'href': re.compile('linkedin.com\/in\/')})
+  link = soup.find('a', attrs={'href': re.compile("^https:\/\/www.linkedin.com\/in\/")})
 # If we find a link that matches...
   if link is not None:
 # ...we split the link every time there is an '=' or '&' symbol in it.
@@ -177,7 +177,7 @@ def get_duck_link(browser, person):
 # part of it, which contains the piece that is important to us.
     final_link = (str_parts[0]) 
 # prints the link to the console so we can see in real time what is happening.
-    print ("DuckDuckGo Link: " + final_link)
+    print ("Yahoo Link: " + final_link)
 # if we can't find any matching links...
   else:
 # ...we assign a null value to our final_link variable.
@@ -187,15 +187,15 @@ def get_duck_link(browser, person):
   return final_link
 
 # This function compares the two links and determines if they match.
-def compare_links(person, google_link, duck_link, counter, match_counter):  
+def compare_links(person, google_link, yahoo_link, counter, match_counter):  
 # Initializes a variable called new_link with an empty string. 
   new_link = ""
 # Checks to make sure that we were able to find values for both of our 
 # links. If we try the next couple of lines on a null variable, we will 
 # get errors, and already know that we know that we don't want to confirm 
 # identical links if one of them does not exist.
-  if google_link is not None and duck_link is not None:
-# We split the Google and DuckDuckGo links every time there is a forward slash. 
+  if google_link is not None and yahoo_link is not None:
+# We split the Google and Yahoo links every time there is a forward slash. 
 # We want the part that comes after the 'https://www.linkedin.com/in/', 
 # so we select the fifth string that is created when we split it. Then we
 # split that string again every time there is a question mark, which 
@@ -203,9 +203,9 @@ def compare_links(person, google_link, duck_link, counter, match_counter):
 # URL. We take the first string from that split, which is the unique 
 # identifier for the profile.
     google_name = google_link.split("/")[4].split("?")[0]
-    duck_name = duck_link.split("/")[4].split("?")[0]
+    yahoo_name = yahoo_link.split("/")[4].split("?")[0]
 # If we have a match...
-    if google_name == duck_name:
+    if google_name == yahoo_name:
 # ...we change our new_link variable to be the same as one of the matching 
 # links.
       new_link = google_link
@@ -225,8 +225,8 @@ def compare_links(person, google_link, duck_link, counter, match_counter):
 
 # This function writes all of the data for a given person into a new row in our 
 # output file.
-def add_result(results_file, name, location, final_link, google_link, duck_link):
-  results_file.writerow([name, location, final_link, google_link, duck_link])
+def add_result(results_file, name, location, final_link, google_link, yahoo_link):
+  results_file.writerow([name, location, final_link, google_link, yahoo_link])
 
 # This function simply take an integer and adds one to it. It's useful for keeping 
 # track of how many times we have looped through the program.
@@ -237,7 +237,7 @@ def increment(counter):
 # This function prints the stats for the program in our terminal, so we can 
 # see the progress in real time.
 def print_stats(match_counter, counter):
-  print('Total: ' + str(counter) + '     Matches: ' + str(match_counter) + '     Percent Matched: ' + str(int(match_counter/counter*100)) + '%')
+  print('Total: ' + str(counter) + '     Matches: ' + str(match_counter) + '     Percent Matched: ' + str(int(float(match_counter)/counter*100)) + '%')
 
 '''
 Now that we have all of our functions set up, we are going to actually call 
@@ -249,17 +249,17 @@ for person in data:
   counter = increment(counter)
 # We get our Google Link
   google_link = get_google_link(google_browser, person)
-# We get our DuckDuckGo Link.
-  duck_link = get_duck_link(duck_browser, person)
+# We get our Yahoo Link.
+  yahoo_link = get_yahoo_link(yahoo_browser, person)
 # We compare the links and get back both a link (if there is a match), and the total 
 # number of matches that we have received so far.
-  final_link, match_counter = compare_links(person, google_link, duck_link, counter, match_counter)
-# We write the name, location, matched link, Google link, and DuckDuckGo link to the output file.
+  final_link, match_counter = compare_links(person, google_link, yahoo_link, counter, match_counter)
+# We write the name, location, matched link, Google link, and Yahoo link to the output file.
 # Why all three links? Because even if there is no match, one of the search engines is often able 
 # to find the right person, and being able to just click the links is a big time saver.
-  add_result(results_file, person["Name"], person["Location"], final_link, google_link, duck_link)
+  add_result(results_file, person["Name"], person["Location"], final_link, google_link, yahoo_link)
 # We print our current stats to the console to keep track of our overall progress in real time.
   print_stats(match_counter, counter)
-# We pause the program for 65 seconds between each loop. We do this so that we are not hammering 
-# the Google and DuckDUckGo servers over and over, which will get us flagged as a bot and cut off.
-  sleep(65)
+# We pause the program for 46 seconds between each loop. We do this so that we are not hammering 
+# the Google and Yahoo servers over and over, which will get us flagged as a bot and cut off.
+  sleep(46)
